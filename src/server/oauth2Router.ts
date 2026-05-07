@@ -1,6 +1,8 @@
 import * as crypto from "node:crypto";
 import { Router as ExpressRouter } from "express";
 import * as jwt from "jsonwebtoken";
+import * as uuid from "uuid";
+import PrivateKey from "../keys/cognitoLocal.private.json";
 import PublicKey from "../keys/cognitoLocal.public.json";
 import type { Services } from "../services";
 import type { AppClient } from "../services/appClient";
@@ -257,6 +259,8 @@ button{width:100%;padding:10px;margin-top:12px;background:#FF6B35;color:#fff;bor
       await handleAuthorizationCodeGrant(req, res, services);
     } else if (grant_type === "refresh_token") {
       await handleRefreshTokenGrant(req, res, services);
+    } else if (grant_type === "client_credentials") {
+      await handleClientCredentialsGrant(req, res, services);
     } else {
       res.status(400).json({ error: "unsupported_grant_type" });
     }
@@ -674,6 +678,113 @@ async function handleRefreshTokenGrant(
   res.json({
     access_token: tokens.AccessToken,
     id_token: tokens.IdToken,
+    token_type: "Bearer",
+    expires_in: 3600,
+  });
+}
+
+async function handleClientCredentialsGrant(
+  req: any,
+  res: any,
+  services: Services,
+): Promise<void> {
+  // RFC 6749 §2.3.1 allows client_id + secret in Basic auth or body
+  const authHeader = req.headers.authorization;
+  let clientId: string | undefined;
+  let presentedSecret: string | undefined;
+  if (authHeader?.startsWith("Basic ")) {
+    const decoded = Buffer.from(authHeader.slice(6), "base64").toString();
+    const idx = decoded.indexOf(":");
+    if (idx === -1) {
+      res.status(400).json({ error: "invalid_request" });
+      return;
+    }
+    clientId = decoded.slice(0, idx);
+    presentedSecret = decoded.slice(idx + 1);
+  } else {
+    clientId = req.body.client_id;
+    presentedSecret = req.body.client_secret;
+  }
+  if (!clientId) {
+    res.status(400).json({ error: "invalid_request" });
+    return;
+  }
+
+  let userPoolClient: AppClient | null;
+  try {
+    userPoolClient = await services.cognito.getAppClient(
+      { logger: req.log },
+      clientId,
+    );
+  } catch {
+    userPoolClient = null;
+  }
+  if (!userPoolClient) {
+    res.status(400).json({ error: "invalid_client" });
+    return;
+  }
+
+  // client_credentials clients are always confidential per RFC 6749 §4.4
+  if (!userPoolClient.ClientSecret) {
+    res.status(400).json({
+      error: "unauthorized_client",
+      error_description: "client_credentials requires a client secret",
+    });
+    return;
+  }
+  if (userPoolClient.ClientSecret !== presentedSecret) {
+    res.status(401).json({ error: "invalid_client" });
+    return;
+  }
+
+  if (!userPoolClient.AllowedOAuthFlows?.includes("client_credentials")) {
+    res.status(400).json({
+      error: "unauthorized_client",
+      error_description: "client_credentials grant not allowed for this client",
+    });
+    return;
+  }
+
+  // Validate scope — must be a subset of AllowedOAuthScopes. Default to the
+  // full allowed set if the request omits `scope` (matches real Cognito).
+  const requested = ((req.body.scope ?? "") as string)
+    .split(/\s+/)
+    .filter(Boolean);
+  const allowed = userPoolClient.AllowedOAuthScopes ?? [];
+  if (requested.some((s) => !allowed.includes(s))) {
+    res.status(400).json({ error: "invalid_scope" });
+    return;
+  }
+  const granted = requested.length > 0 ? requested : allowed;
+
+  // No user — `sub` is the client_id (matches real Cognito client_credentials
+  // tokens). Backend verifier only reads `iss`, `token_use`, `kid`, and `sub`.
+  const issuer = `${services.config.TokenConfig.IssuerDomain}/${userPoolClient.UserPoolId}`;
+  const now = Math.floor(services.clock.get().getTime() / 1000);
+
+  const expiresIn =
+    userPoolClient.AccessTokenValidity !== undefined
+      ? `${userPoolClient.AccessTokenValidity}${userPoolClient.TokenValidityUnits?.AccessToken ?? "hours"}`
+      : "1h";
+
+  const accessToken = jwt.sign(
+    {
+      sub: clientId,
+      token_use: "access",
+      scope: granted.join(" "),
+      auth_time: now,
+      iat: now,
+      jti: uuid.v4(),
+      client_id: clientId,
+      version: 2,
+    },
+    PrivateKey.pem,
+    // biome-ignore lint/suspicious/noExplicitAny: expiresIn string union is too narrow for template literal
+    { algorithm: "RS256", issuer, keyid: "CognitoLocal", expiresIn } as any,
+  );
+
+  res.json({
+    access_token: accessToken,
     token_type: "Bearer",
     expires_in: 3600,
   });
