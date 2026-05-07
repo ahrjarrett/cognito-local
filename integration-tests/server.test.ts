@@ -147,7 +147,19 @@ describe("HTTP server", () => {
         end_session_endpoint: expect.stringContaining("/logout"),
         response_types_supported: ["code"],
         subject_types_supported: ["public"],
-        scopes_supported: ["openid", "email", "phone", "profile"],
+        scopes_supported: expect.arrayContaining([
+          "openid",
+          "email",
+          "phone",
+          "profile",
+          "aws.cognito.signin.user.admin",
+          "api/full",
+        ]),
+        grant_types_supported: expect.arrayContaining([
+          "authorization_code",
+          "refresh_token",
+          "client_credentials",
+        ]),
         code_challenge_methods_supported: ["S256"],
       });
     });
