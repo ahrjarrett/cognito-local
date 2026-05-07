@@ -1,7 +1,7 @@
 FROM node:22-alpine AS builder
 WORKDIR /app
 
-ADD package.json package-lock.json yarn.lock ./
+ADD package.json ./
 RUN npm install --ignore-scripts
 
 ADD src src
