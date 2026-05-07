@@ -6,7 +6,14 @@
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "files": [
-    "lib"
+    "lib",
+    "src",
+    "Dockerfile",
+    "docker-compose.yml",
+    "tsconfig.json",
+    "tsconfig.build.json",
+    "package-lock.json",
+    "yarn.lock"
   ],
   "scripts": {
     "build": "rm -rf lib && tsc --emitDeclarationOnly --project tsconfig.build.json && esbuild $(find src -name '*.ts' ! -name '*.test.ts' ! -path '*/__tests__/*') --outdir=lib --platform=node --target=node22 --format=cjs && cp -r src/keys lib/keys",
