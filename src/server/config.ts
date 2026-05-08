@@ -19,6 +19,7 @@ export interface Config {
   KMSConfig?: AWS.KMS.ClientConfiguration & KMSConfig;
   ServerConfig: ServerOptions;
   TokenConfig: TokenConfig;
+  Code?: string;
 }
 
 const port = parseInt(process.env.PORT ?? "9229", 10);

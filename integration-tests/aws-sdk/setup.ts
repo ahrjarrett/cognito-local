@@ -7,7 +7,6 @@ import { afterEach, beforeEach, vi } from "vitest";
 import { createServer } from "../../src";
 import { FakeMessageDeliveryService } from "../../src/__tests__/FakeMessageDeliveryService";
 import { MockLogger } from "../../src/__tests__/mockLogger";
-import { InMemoryAuthorizationCodeStore } from "../../src/services/authorizationCodeStore";
 import { DefaultConfig } from "../../src/server/config";
 import { Router } from "../../src/server/Router";
 import {
@@ -16,6 +15,7 @@ import {
   MessagesService,
   TriggersService,
 } from "../../src/services";
+import { InMemoryAuthorizationCodeStore } from "../../src/services/authorizationCodeStore";
 import { CognitoServiceFactoryImpl } from "../../src/services/cognitoService";
 import { CryptoService } from "../../src/services/crypto";
 import type { DataStoreFactory } from "../../src/services/dataStore/factory";
@@ -76,7 +76,7 @@ export const withCognitoSdk =
         cognito: cognitoClient,
         config: DefaultConfig,
         messages: new MessagesService(triggers, fakeMessageDeliveryService),
-        otp,
+        otp: otp(),
         triggers,
         tokenGenerator: new JwtTokenGenerator(
           clock,

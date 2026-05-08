@@ -81,19 +81,10 @@ export const createDefaultServer = async (
       triggers,
       new MessageDeliveryService(messageSender),
     ),
-    otp,
-    tokenGenerator: new JwtTokenGenerator(
-      clock,
-      triggers,
-      config.TokenConfig,
-    ),
+    otp: otp({ Code: config.Code }),
+    tokenGenerator: new JwtTokenGenerator(clock, triggers, config.TokenConfig),
     triggers,
   };
 
-  return createServer(
-    Router(services),
-    logger,
-    config.ServerConfig,
-    services,
-  );
+  return createServer(Router(services), logger, config.ServerConfig, services);
 };
