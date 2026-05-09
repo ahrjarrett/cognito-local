@@ -17,6 +17,9 @@ import {
   type AdminUpdateUserAttributesTarget,
 } from "./adminUpdateUserAttributes";
 
+const validValueFor = (attr: string) =>
+  attr === "phone_number" ? "+61400000000" : "new value";
+
 describe("AdminUpdateUserAttributes target", () => {
   let adminUpdateUserAttributes: AdminUpdateUserAttributesTarget;
   let mockUserPoolService: MockedObject<UserPoolService>;
@@ -118,11 +121,35 @@ describe("AdminUpdateUserAttributes target", () => {
     });
   });
 
+  describe.each([
+    "0400000000",
+    "+1NotAPhoNum",
+    "+ThisIsDefinitelyNotAPhoneNum",
+    "+",
+    "+0123456789",
+    "1234567890",
+  ])("when phone_number is %j", (phoneNumber) => {
+    it("throws InvalidParameterError with the real-Cognito message", async () => {
+      mockUserPoolService.getUserByUsername.mockResolvedValue(TDB.user());
+
+      const promise = adminUpdateUserAttributes(TestContext, {
+        UserPoolId: "test",
+        UserAttributes: [{ Name: "phone_number", Value: phoneNumber }],
+        Username: "abc",
+      });
+
+      await expect(promise).rejects.toBeInstanceOf(InvalidParameterError);
+      await expect(promise).rejects.toThrow("Invalid phone number format.");
+      expect(mockUserPoolService.saveUser).not.toHaveBeenCalled();
+    });
+  });
+
   describe.each(["email", "phone_number"])(
     "%s is in req.UserAttributes without the relevant verified attribute",
     (attr) => {
       it(`sets the ${attr}_verified attribute to false`, async () => {
         const user = TDB.user();
+        const value = validValueFor(attr);
 
         mockUserPoolService.getUserByUsername.mockResolvedValue(user);
 
@@ -131,7 +158,7 @@ describe("AdminUpdateUserAttributes target", () => {
             client: "metadata",
           },
           UserPoolId: "test",
-          UserAttributes: [attribute(attr, "new value")],
+          UserAttributes: [attribute(attr, value)],
           Username: "abc",
         });
 
@@ -139,7 +166,7 @@ describe("AdminUpdateUserAttributes target", () => {
           ...user,
           Attributes: attributesAppend(
             user.Attributes,
-            attribute(attr, "new value"),
+            attribute(attr, value),
             attribute(`${attr}_verified`, "false"),
           ),
           UserLastModifiedDate: clock.get(),
@@ -200,7 +227,7 @@ describe("AdminUpdateUserAttributes target", () => {
               },
               UserPoolId: "test",
               UserAttributes: attributes.map((attr: string) =>
-                attribute(attr, "new value"),
+                attribute(attr, validValueFor(attr)),
               ),
               Username: "abc",
             }),
@@ -222,7 +249,7 @@ describe("AdminUpdateUserAttributes target", () => {
             },
             UserPoolId: "test",
             UserAttributes: attributes.map((attr: string) =>
-              attribute(attr, "new value"),
+              attribute(attr, validValueFor(attr)),
             ),
             Username: "abc",
           });
@@ -302,7 +329,7 @@ describe("AdminUpdateUserAttributes target", () => {
             },
             UserPoolId: "test",
             UserAttributes: attributes.map((attr: string) =>
-              attribute(attr, "new value"),
+              attribute(attr, validValueFor(attr)),
             ),
             Username: "abc",
           });

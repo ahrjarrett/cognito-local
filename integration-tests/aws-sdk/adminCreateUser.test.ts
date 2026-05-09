@@ -26,7 +26,7 @@ describe(
 
           const createUserResult = await client
             .adminCreateUser({
-              UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+              UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
               Username: "example@example.com",
               UserPoolId: userPoolId,
             })
@@ -35,7 +35,7 @@ describe(
           expect(createUserResult).toEqual({
             User: {
               Attributes: [
-                { Name: "phone_number", Value: "0400000000" },
+                { Name: "phone_number", Value: "+61400000000" },
                 {
                   Name: "sub",
                   Value: expect.stringMatching(UUID),
@@ -154,7 +154,7 @@ describe(
 
           const createUserResult = await client
             .adminCreateUser({
-              UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+              UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
               Username: "example@example.com",
               UserPoolId: userPoolId,
             })
@@ -164,7 +164,7 @@ describe(
             User: {
               Attributes: [
                 { Name: "email", Value: "example@example.com" },
-                { Name: "phone_number", Value: "0400000000" },
+                { Name: "phone_number", Value: "+61400000000" },
                 {
                   Name: "sub",
                   Value: expect.stringMatching(UUID),

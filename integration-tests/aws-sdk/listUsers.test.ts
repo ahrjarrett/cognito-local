@@ -18,7 +18,7 @@ describe(
 
         const createUserResult = await client
           .adminCreateUser({
-            UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+            UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
             Username: "abc",
             UserPoolId: userPoolId,
           })
@@ -56,7 +56,7 @@ describe(
 
         await client
           .adminCreateUser({
-            UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+            UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
             Username: "abc1",
             UserPoolId: userPoolId,
           })
@@ -64,7 +64,7 @@ describe(
 
         const createUserResult2 = await client
           .adminCreateUser({
-            UserAttributes: [{ Name: "phone_number", Value: "0500000000" }],
+            UserAttributes: [{ Name: "phone_number", Value: "+61500000000" }],
             Username: "abc2",
             UserPoolId: userPoolId,
           })
@@ -73,7 +73,7 @@ describe(
         const result = await client
           .listUsers({
             UserPoolId: userPoolId,
-            Filter: 'phone_number ^= "05"',
+            Filter: 'phone_number ^= "+615"',
           })
           .promise();
 
@@ -128,7 +128,7 @@ describe(
 
         const createUserResult = await client
           .adminCreateUser({
-            UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+            UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
             Username: "example@example.com",
             UserPoolId: userPoolId,
           })

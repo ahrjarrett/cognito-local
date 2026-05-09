@@ -187,7 +187,7 @@ describe("User Pool Service", () => {
           Attributes: [
             { Name: "sub", Value: "uuid-1234" },
             { Name: "email", Value: "example@example.com" },
-            { Name: "phone_number", Value: "0411000111" },
+            { Name: "phone_number", Value: "+61411000111" },
           ],
           UserCreateDate: new Date(),
           UserLastModifiedDate: new Date(),
@@ -230,7 +230,7 @@ describe("User Pool Service", () => {
         Attributes: [
           { Name: "sub", Value: "uuid-1234" },
           { Name: "email", Value: "example@example.com" },
-          { Name: "phone_number", Value: "0411000111" },
+          { Name: "phone_number", Value: "+61411000111" },
         ],
         UserCreateDate: new Date(),
         UserLastModifiedDate: new Date(),
@@ -264,7 +264,7 @@ describe("User Pool Service", () => {
       Attributes: [
         { Name: "sub", Value: "uuid-1234" },
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0411000111" },
+        { Name: "phone_number", Value: "+61411000111" },
       ],
       UserCreateDate: new Date(),
       UserLastModifiedDate: new Date(),
@@ -321,7 +321,7 @@ describe("User Pool Service", () => {
         Attributes: [
           { Name: "sub", Value: "uuid-1234" },
           { Name: "email", Value: "example@example.com" },
-          { Name: "phone_number", Value: "0411000111" },
+          { Name: "phone_number", Value: "+61411000111" },
         ],
         UserCreateDate: now,
         UserLastModifiedDate: now,
@@ -352,7 +352,7 @@ describe("User Pool Service", () => {
           Attributes: [
             { Name: "sub", Value: "uuid-1234" },
             { Name: "email", Value: "example@example.com" },
-            { Name: "phone_number", Value: "0411000111" },
+            { Name: "phone_number", Value: "+61411000111" },
           ],
           UserCreateDate: now,
           UserLastModifiedDate: now,
