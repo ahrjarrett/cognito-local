@@ -17,8 +17,11 @@ import {
   type AdminUpdateUserAttributesTarget,
 } from "./adminUpdateUserAttributes";
 
-const validValueFor = (attr: string) =>
-  attr === "phone_number" ? "+61400000000" : "new value";
+const validValueFor = (attr: string) => {
+  if (attr === "phone_number") return "+61400000000";
+  if (attr === "email") return "example@example.com";
+  return "new value";
+};
 
 describe("AdminUpdateUserAttributes target", () => {
   let adminUpdateUserAttributes: AdminUpdateUserAttributesTarget;
@@ -140,6 +143,30 @@ describe("AdminUpdateUserAttributes target", () => {
 
       await expect(promise).rejects.toBeInstanceOf(InvalidParameterError);
       await expect(promise).rejects.toThrow("Invalid phone number format.");
+      expect(mockUserPoolService.saveUser).not.toHaveBeenCalled();
+    });
+  });
+
+  describe.each([
+    "test+roger@@qbdvision.com",
+    "test14+roger@qbdvision.com!!!!",
+    "no-at-sign",
+    "missing-tld@example",
+    "@no-local.com",
+    "trailing-dot@example.",
+    "spaces in@local.com",
+  ])("when email is %j", (email) => {
+    it("throws InvalidParameterError with the real-Cognito message", async () => {
+      mockUserPoolService.getUserByUsername.mockResolvedValue(TDB.user());
+
+      const promise = adminUpdateUserAttributes(TestContext, {
+        UserPoolId: "test",
+        UserAttributes: [{ Name: "email", Value: email }],
+        Username: "abc",
+      });
+
+      await expect(promise).rejects.toBeInstanceOf(InvalidParameterError);
+      await expect(promise).rejects.toThrow("Invalid email address format.");
       expect(mockUserPoolService.saveUser).not.toHaveBeenCalled();
     });
   });
