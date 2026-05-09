@@ -12,6 +12,7 @@ import {
   defaultVerifiedAttributesIfModified,
   hasUnverifiedContactAttributes,
   type User,
+  validateEmailAttribute,
   validatePermittedAttributeChanges,
   validatePhoneNumberAttribute,
 } from "../services/userPoolService";
@@ -67,6 +68,7 @@ export const AdminUpdateUserAttributes =
   }: AdminUpdateUserAttributesServices): AdminUpdateUserAttributesTarget =>
   async (ctx, req) => {
     validatePhoneNumberAttribute(req.UserAttributes);
+    validateEmailAttribute(req.UserAttributes);
 
     const userPool = await cognito.getUserPool(ctx, req.UserPoolId);
     const user = await userPool.getUserByUsername(ctx, req.Username);

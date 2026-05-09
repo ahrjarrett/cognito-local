@@ -420,6 +420,30 @@ describe("AdminCreateUser target", () => {
     });
   });
 
+  describe.each([
+    "test+roger@@qbdvision.com",
+    "test14+roger@qbdvision.com!!!!",
+    "no-at-sign",
+    "missing-tld@example",
+    "@no-local.com",
+    "trailing-dot@example.",
+    "spaces in@local.com",
+  ])("when email is %j", (email) => {
+    it("throws InvalidParameterError with the real-Cognito message", async () => {
+      const promise = adminCreateUser(TestContext, {
+        TemporaryPassword: "pwd",
+        UserAttributes: [{ Name: "email", Value: email }],
+        Username: "user-supplied",
+        UserPoolId: "test",
+      });
+
+      await expect(promise).rejects.toBeInstanceOf(InvalidParameterError);
+      await expect(promise).rejects.toThrow("Invalid email address format.");
+      expect(mockUserPoolService.saveUser).not.toHaveBeenCalled();
+      expect(mockMessages.deliver).not.toHaveBeenCalled();
+    });
+  });
+
   it("handles creating a duplicate user", async () => {
     const existingUser = TDB.user();
     mockUserPoolService.getUserByUsername.mockResolvedValue(existingUser);

@@ -573,6 +573,20 @@ export const validatePhoneNumberAttribute = (
   }
 };
 
+// Real Cognito requires email to have exactly one "@", non-empty local + domain
+// parts, and a TLD of at least two letters. Inputs like "a@@b.com" or
+// "a@b.com!!!" are rejected with this exact message — clients assert against it.
+const EMAIL = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+
+export const validateEmailAttribute = (
+  requestAttributes: AttributeListType | undefined,
+): void => {
+  const email = attributeValue("email", requestAttributes);
+  if (email !== undefined && !EMAIL.test(email)) {
+    throw new InvalidParameterError("Invalid email address format.");
+  }
+};
+
 export const validatePermittedAttributeChanges = (
   requestAttributes: AttributeListType,
   schemaAttributes: SchemaAttributesListType,
