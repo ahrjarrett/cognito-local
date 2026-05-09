@@ -36,7 +36,7 @@ describe("AdminCreateUser target", () => {
       TemporaryPassword: "pwd",
       UserAttributes: [
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
       ],
       Username: "user-supplied",
       UserPoolId: "test",
@@ -45,7 +45,7 @@ describe("AdminCreateUser target", () => {
     expect(mockUserPoolService.saveUser).toHaveBeenCalledWith(TestContext, {
       Attributes: [
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
         {
           Name: "sub",
           Value: expect.stringMatching(UUID),
@@ -68,7 +68,7 @@ describe("AdminCreateUser target", () => {
       TemporaryPassword: "pwd",
       UserAttributes: [
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
       ],
       Username: "example@example.com",
       UserPoolId: "test",
@@ -77,7 +77,7 @@ describe("AdminCreateUser target", () => {
     expect(mockUserPoolService.saveUser).toHaveBeenCalledWith(TestContext, {
       Attributes: [
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
         {
           Name: "sub",
           Value: expect.stringMatching(UUID),
@@ -97,7 +97,7 @@ describe("AdminCreateUser target", () => {
     await adminCreateUser(TestContext, {
       UserAttributes: [
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
       ],
       Username: "user-supplied",
       UserPoolId: "test",
@@ -106,7 +106,7 @@ describe("AdminCreateUser target", () => {
     expect(mockUserPoolService.saveUser).toHaveBeenCalledWith(TestContext, {
       Attributes: [
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
         {
           Name: "sub",
           Value: expect.stringMatching(UUID),
@@ -183,7 +183,7 @@ describe("AdminCreateUser target", () => {
           },
           DesiredDeliveryMediums: ["SMS"],
           TemporaryPassword: "pwd",
-          UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+          UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
           Username: "user-supplied",
           UserPoolId: "test",
         });
@@ -201,7 +201,7 @@ describe("AdminCreateUser target", () => {
           {
             AttributeName: "phone_number",
             DeliveryMedium: "SMS",
-            Destination: "0400000000",
+            Destination: "+61400000000",
           },
         );
       });
@@ -232,7 +232,7 @@ describe("AdminCreateUser target", () => {
             client: "metadata",
           },
           TemporaryPassword: "pwd",
-          UserAttributes: [{ Name: "phone_number", Value: "0400000000" }],
+          UserAttributes: [{ Name: "phone_number", Value: "+61400000000" }],
           Username: "user-supplied",
           UserPoolId: "test",
         });
@@ -250,7 +250,7 @@ describe("AdminCreateUser target", () => {
           {
             AttributeName: "phone_number",
             DeliveryMedium: "SMS",
-            Destination: "0400000000",
+            Destination: "+61400000000",
           },
         );
       });
@@ -286,7 +286,7 @@ describe("AdminCreateUser target", () => {
           TemporaryPassword: "pwd",
           UserAttributes: [
             { Name: "email", Value: "example@example.com" },
-            { Name: "phone_number", Value: "0400000000" },
+            { Name: "phone_number", Value: "+61400000000" },
           ],
           Username: "user-supplied",
           UserPoolId: "test",
@@ -305,7 +305,7 @@ describe("AdminCreateUser target", () => {
           {
             AttributeName: "phone_number",
             DeliveryMedium: "SMS",
-            Destination: "0400000000",
+            Destination: "+61400000000",
           },
         );
       });
@@ -394,6 +394,29 @@ describe("AdminCreateUser target", () => {
       UserStatus: "FORCE_CHANGE_PASSWORD",
       Username: "user-supplied",
       RefreshTokens: [],
+    });
+  });
+
+  describe.each([
+    "0400000000",
+    "+1NotAPhoNum",
+    "+ThisIsDefinitelyNotAPhoneNum",
+    "+",
+    "+0123456789",
+    "1234567890",
+  ])("when phone_number is %j", (phoneNumber) => {
+    it("throws InvalidParameterError with the real-Cognito message", async () => {
+      const promise = adminCreateUser(TestContext, {
+        TemporaryPassword: "pwd",
+        UserAttributes: [{ Name: "phone_number", Value: phoneNumber }],
+        Username: "user-supplied",
+        UserPoolId: "test",
+      });
+
+      await expect(promise).rejects.toBeInstanceOf(InvalidParameterError);
+      await expect(promise).rejects.toThrow("Invalid phone number format.");
+      expect(mockUserPoolService.saveUser).not.toHaveBeenCalled();
+      expect(mockMessages.deliver).not.toHaveBeenCalled();
     });
   });
 

@@ -17,6 +17,7 @@ import {
   attributesInclude,
   attributeValue,
   type User,
+  validatePhoneNumberAttribute,
 } from "../services/userPoolService";
 import { userToResponseObject } from "./responses";
 import type { Target } from "./Target";
@@ -102,6 +103,8 @@ export const AdminCreateUser =
     messages,
   }: AdminCreateUserServices): AdminCreateUserTarget =>
   async (ctx, req) => {
+    validatePhoneNumberAttribute(req.UserAttributes);
+
     const userPool = await cognito.getUserPool(ctx, req.UserPoolId);
     const existingUser = await userPool.getUserByUsername(ctx, req.Username);
     const supressWelcomeMessage = req.MessageAction === "SUPPRESS";

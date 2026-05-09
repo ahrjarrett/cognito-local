@@ -559,6 +559,20 @@ export class UserPoolServiceFactoryImpl implements UserPoolServiceFactory {
   }
 }
 
+// Real Cognito enforces E.164 on phone_number: a leading "+" followed by 1–15
+// digits, leading digit non-zero. Anything else (letters, dashes, empty after
+// "+") is rejected with this exact message — clients assert against it.
+const E164_PHONE_NUMBER = /^\+[1-9]\d{1,14}$/;
+
+export const validatePhoneNumberAttribute = (
+  requestAttributes: AttributeListType | undefined,
+): void => {
+  const phoneNumber = attributeValue("phone_number", requestAttributes);
+  if (phoneNumber !== undefined && !E164_PHONE_NUMBER.test(phoneNumber)) {
+    throw new InvalidParameterError("Invalid phone number format.");
+  }
+};
+
 export const validatePermittedAttributeChanges = (
   requestAttributes: AttributeListType,
   schemaAttributes: SchemaAttributesListType,

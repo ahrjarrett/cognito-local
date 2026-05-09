@@ -19,7 +19,7 @@ describe(
         .adminCreateUser({
           UserAttributes: [
             { Name: "email", Value: "example@example.com" },
-            { Name: "phone_number", Value: "0400000000" },
+            { Name: "phone_number", Value: "+61400000000" },
           ],
           Username: "abc",
           UserPoolId: userPoolId,
@@ -35,7 +35,7 @@ describe(
 
       expect(user.UserAttributes).toEqual([
         { Name: "email", Value: "example@example.com" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
         { Name: "sub", Value: expect.stringMatching(UUID) },
       ]);
 
@@ -57,7 +57,7 @@ describe(
       expect(user.UserAttributes).toEqual([
         { Name: "email", Value: "example2@example.com" },
         { Name: "email_verified", Value: "false" },
-        { Name: "phone_number", Value: "0400000000" },
+        { Name: "phone_number", Value: "+61400000000" },
         { Name: "sub", Value: expect.stringMatching(UUID) },
       ]);
     });

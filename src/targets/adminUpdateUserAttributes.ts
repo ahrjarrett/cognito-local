@@ -13,6 +13,7 @@ import {
   hasUnverifiedContactAttributes,
   type User,
   validatePermittedAttributeChanges,
+  validatePhoneNumberAttribute,
 } from "../services/userPoolService";
 import type { Target } from "./Target";
 
@@ -65,6 +66,8 @@ export const AdminUpdateUserAttributes =
     messages,
   }: AdminUpdateUserAttributesServices): AdminUpdateUserAttributesTarget =>
   async (ctx, req) => {
+    validatePhoneNumberAttribute(req.UserAttributes);
+
     const userPool = await cognito.getUserPool(ctx, req.UserPoolId);
     const user = await userPool.getUserByUsername(ctx, req.Username);
     if (!user) {
