@@ -31,7 +31,12 @@ export const ConfirmForgotPassword =
     }
 
     if (user.ConfirmationCode !== req.ConfirmationCode) {
-      throw new CodeMismatchError();
+      // Real Cognito returns this exact phrasing for ConfirmForgotPassword
+      // (and ConfirmSignUp / VerifyUserAttribute) on a wrong code; clients
+      // assert against it, so we override the default CodeMismatchError text.
+      throw new CodeMismatchError(
+        "Invalid verification code provided, please try again.",
+      );
     }
 
     const updatedUser = {

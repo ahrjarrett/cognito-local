@@ -28,8 +28,8 @@ export class UsernameExistsError extends CognitoError {
 }
 
 export class CodeMismatchError extends CognitoError {
-  public constructor() {
-    super("CodeMismatchException", "Incorrect confirmation code");
+  public constructor(message = "Incorrect confirmation code") {
+    super("CodeMismatchException", message);
   }
 }
 

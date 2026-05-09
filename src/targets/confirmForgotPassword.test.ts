@@ -55,14 +55,17 @@ describe("ConfirmForgotPassword target", () => {
 
     mockUserPoolService.getUserByUsername.mockResolvedValue(user);
 
-    await expect(
-      confirmForgotPassword(TestContext, {
-        ClientId: "clientId",
-        Username: "janice",
-        ConfirmationCode: "123456",
-        Password: "newPassword",
-      }),
-    ).rejects.toBeInstanceOf(CodeMismatchError);
+    const promise = confirmForgotPassword(TestContext, {
+      ClientId: "clientId",
+      Username: "janice",
+      ConfirmationCode: "123456",
+      Password: "newPassword",
+    });
+
+    await expect(promise).rejects.toBeInstanceOf(CodeMismatchError);
+    await expect(promise).rejects.toThrow(
+      "Invalid verification code provided, please try again.",
+    );
   });
 
   describe("when code matches", () => {
