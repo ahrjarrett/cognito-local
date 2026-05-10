@@ -826,6 +826,30 @@ describe("SignUp target", () => {
     });
   });
 
+  // Regression test for the SignUp ordering bug: AWS Cognito persists the user
+  // before invoking the CustomMessage_SignUp trigger that messages.deliver
+  // fires (see signUp.ts for citations). Reversing the order deadlocks any
+  // CustomMessage handler that calls back into ListUsers/AdminGetUser to look
+  // up the just-created user.
+  it("persists the user before delivering the welcome message", async () => {
+    mockUserPoolService.options.AutoVerifiedAttributes = ["email"];
+    mockUserPoolService.getUserByUsername.mockResolvedValue(null);
+    mockOtp.mockReturnValue("123456");
+
+    await signUp(TestContext, {
+      ClientId: "clientId",
+      Password: "pwd",
+      Username: "user-supplied",
+      UserAttributes: [{ Name: "email", Value: "example@example.com" }],
+    });
+
+    const saveOrder = mockUserPoolService.saveUser.mock.invocationCallOrder[0];
+    const deliverOrder = mockMessages.deliver.mock.invocationCallOrder[0];
+    expect(saveOrder).toBeDefined();
+    expect(deliverOrder).toBeDefined();
+    expect(saveOrder).toBeLessThan(deliverOrder);
+  });
+
   it("saves the confirmation code on the user for comparison when confirming", async () => {
     mockUserPoolService.getUserByUsername.mockResolvedValue(null);
     mockOtp.mockReturnValue("123456");
