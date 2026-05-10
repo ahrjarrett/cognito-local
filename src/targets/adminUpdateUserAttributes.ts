@@ -9,8 +9,8 @@ import type { Context } from "../services/context";
 import { selectAppropriateDeliveryMethod } from "../services/messageDelivery/deliveryMethod";
 import {
   attributesAppend,
-  defaultVerifiedAttributesIfModified,
   hasUnverifiedContactAttributes,
+  splitImmediateAndDelayedAttributes,
   type User,
   validateEmailAttribute,
   validatePermittedAttributeChanges,
@@ -76,23 +76,30 @@ export const AdminUpdateUserAttributes =
       throw new NotAuthorizedError();
     }
 
-    const userAttributesToSet = defaultVerifiedAttributesIfModified(
-      validatePermittedAttributeChanges(
-        req.UserAttributes,
-        // if the user pool doesn't have any SchemaAttributes it was probably created manually
-        // or before we started explicitly saving the defaults. Fallback on the AWS defaults in
-        // this case, otherwise checks against the schema for default attributes like email will
-        // fail.
-        userPool.options.SchemaAttributes ??
-          USER_POOL_AWS_DEFAULTS.SchemaAttributes ??
-          [],
-      ),
+    const permittedAttributeChanges = validatePermittedAttributeChanges(
+      req.UserAttributes,
+      // if the user pool doesn't have any SchemaAttributes it was probably created manually
+      // or before we started explicitly saving the defaults. Fallback on the AWS defaults in
+      // this case, otherwise checks against the schema for default attributes like email will
+      // fail.
+      userPool.options.SchemaAttributes ??
+        USER_POOL_AWS_DEFAULTS.SchemaAttributes ??
+        [],
     );
 
-    const updatedUser = {
+    const [immediateAttributes, delayedAttributes] =
+      splitImmediateAndDelayedAttributes(
+        permittedAttributeChanges,
+        userPool.options.UserAttributeUpdateSettings
+          ?.AttributesRequireVerificationBeforeUpdate,
+      );
+
+    const updatedUser: User = {
       ...user,
-      Attributes: attributesAppend(user.Attributes, ...userAttributesToSet),
+      Attributes: attributesAppend(user.Attributes, ...immediateAttributes),
       UserLastModifiedDate: clock.get(),
+      UnverifiedAttributeChanges:
+        delayedAttributes.length > 0 ? delayedAttributes : undefined,
     };
 
     await userPool.saveUser(ctx, updatedUser);
@@ -101,7 +108,8 @@ export const AdminUpdateUserAttributes =
     // e.g. a user with email_verified=false that you don't touch the email attributes won't get notified
     if (
       userPool.options.AutoVerifiedAttributes?.length &&
-      hasUnverifiedContactAttributes(userAttributesToSet)
+      (hasUnverifiedContactAttributes(immediateAttributes) ||
+        hasUnverifiedContactAttributes(delayedAttributes))
     ) {
       const code = otp();
 
@@ -113,7 +121,7 @@ export const AdminUpdateUserAttributes =
       await sendAttributeVerificationCode(
         ctx,
         userPool,
-        user,
+        updatedUser,
         messages,
         req,
         code,
