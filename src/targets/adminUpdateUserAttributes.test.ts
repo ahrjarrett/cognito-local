@@ -240,37 +240,19 @@ describe("AdminUpdateUserAttributes target", () => {
       });
 
       describe("the verification status changed because of the update", () => {
-        it("throws if the user doesn't have a valid way to contact them", async () => {
+        it("throws if the resulting user has no attribute matching AutoVerifiedAttributes", async () => {
+          // AutoVerifiedAttributes is ["email"] in this describe block, so the
+          // verification destination must be an email. If the post-update user
+          // doesn't end up with one, there's nowhere to send the code.
+          const willHaveEmailAfterUpdate = attributes.includes("email");
+
           const user = TDB.user({
             Attributes: [],
           });
 
           mockUserPoolService.getUserByUsername.mockResolvedValue(user);
 
-          await expect(
-            adminUpdateUserAttributes(TestContext, {
-              ClientMetadata: {
-                client: "metadata",
-              },
-              UserPoolId: "test",
-              UserAttributes: attributes.map((attr: string) =>
-                attribute(attr, validValueFor(attr)),
-              ),
-              Username: "abc",
-            }),
-          ).rejects.toEqual(
-            new InvalidParameterError(
-              "User has no attribute matching desired auto verified attributes",
-            ),
-          );
-        });
-
-        it("delivers a OTP code to the user", async () => {
-          const user = TDB.user();
-
-          mockUserPoolService.getUserByUsername.mockResolvedValue(user);
-
-          await adminUpdateUserAttributes(TestContext, {
+          const promise = adminUpdateUserAttributes(TestContext, {
             ClientMetadata: {
               client: "metadata",
             },
@@ -281,18 +263,64 @@ describe("AdminUpdateUserAttributes target", () => {
             Username: "abc",
           });
 
+          if (willHaveEmailAfterUpdate) {
+            await expect(promise).resolves.toEqual({});
+          } else {
+            await expect(promise).rejects.toEqual(
+              new InvalidParameterError(
+                "User has no attribute matching desired auto verified attributes",
+              ),
+            );
+          }
+        });
+
+        it("delivers a OTP code to the user with the post-update attributes", async () => {
+          const user = TDB.user();
+          const updates = attributes.map((attr: string) =>
+            attribute(attr, validValueFor(attr)),
+          );
+
+          mockUserPoolService.getUserByUsername.mockResolvedValue(user);
+
+          await adminUpdateUserAttributes(TestContext, {
+            ClientMetadata: {
+              client: "metadata",
+            },
+            UserPoolId: "test",
+            UserAttributes: updates,
+            Username: "abc",
+          });
+
+          // Real Cognito invokes CustomMessage_UpdateUserAttribute *after*
+          // applying the attribute change to the user record (the default,
+          // when AttributesRequireVerificationBeforeUpdate is empty), so the
+          // lambda's request.userAttributes reflects the post-update state
+          // and the verification code is delivered to the new email/phone.
+          const updatedUser = {
+            ...user,
+            Attributes: attributesAppend(
+              user.Attributes,
+              ...updates,
+              ...attributes.map((attr: string) =>
+                attribute(`${attr}_verified`, "false"),
+              ),
+            ),
+            UserLastModifiedDate: clock.get(),
+            UnverifiedAttributeChanges: undefined,
+          };
+
           expect(mockMessages.deliver).toHaveBeenCalledWith(
             TestContext,
             "UpdateUserAttribute",
             null,
             "test",
-            user,
+            updatedUser,
             "123456",
             { client: "metadata" },
             {
               AttributeName: "email",
               DeliveryMedium: "EMAIL",
-              Destination: attributeValue("email", user.Attributes),
+              Destination: attributeValue("email", updatedUser.Attributes),
             },
           );
 
@@ -305,6 +333,87 @@ describe("AdminUpdateUserAttributes target", () => {
         });
       });
     });
+
+    describe.each(["email", "phone_number"] as const)(
+      "when %s is in AttributesRequireVerificationBeforeUpdate",
+      (attr) => {
+        it("keeps the original value active and tracks the new value on UnverifiedAttributeChanges", async () => {
+          const user = TDB.user();
+
+          mockUserPoolService.options.UserAttributeUpdateSettings = {
+            AttributesRequireVerificationBeforeUpdate: [attr],
+          };
+          mockUserPoolService.getUserByUsername.mockResolvedValue(user);
+
+          await adminUpdateUserAttributes(TestContext, {
+            ClientMetadata: {
+              client: "metadata",
+            },
+            UserPoolId: "test",
+            UserAttributes: [attribute(attr, validValueFor(attr))],
+            Username: "abc",
+          });
+
+          // Per the Cognito Developer Guide ("Verifying updates to email
+          // addresses and phone numbers"), when verification is required the
+          // user can sign in and receive messages with the original attribute
+          // value until they verify the new value. The new value sits on
+          // UnverifiedAttributeChanges, not on Attributes.
+          const updatedUser = {
+            ...user,
+            UnverifiedAttributeChanges: [
+              attribute(attr, validValueFor(attr)),
+              attribute(`${attr}_verified`, "false"),
+            ],
+            UserLastModifiedDate: clock.get(),
+          };
+
+          expect(mockUserPoolService.saveUser).toHaveBeenCalledWith(
+            TestContext,
+            updatedUser,
+          );
+        });
+      },
+    );
+
+    describe.each(["email", "phone_number"] as const)(
+      "when %s is not in AttributesRequireVerificationBeforeUpdate",
+      (attr) => {
+        it("saves the updated attribute value immediately", async () => {
+          const user = TDB.user();
+
+          mockUserPoolService.options.UserAttributeUpdateSettings = {
+            AttributesRequireVerificationBeforeUpdate: [],
+          };
+          mockUserPoolService.getUserByUsername.mockResolvedValue(user);
+
+          await adminUpdateUserAttributes(TestContext, {
+            ClientMetadata: {
+              client: "metadata",
+            },
+            UserPoolId: "test",
+            UserAttributes: [attribute(attr, validValueFor(attr))],
+            Username: "abc",
+          });
+
+          const updatedUser = {
+            ...user,
+            Attributes: attributesAppend(
+              user.Attributes,
+              attribute(attr, validValueFor(attr)),
+              attribute(`${attr}_verified`, "false"),
+            ),
+            UserLastModifiedDate: clock.get(),
+            UnverifiedAttributeChanges: undefined,
+          };
+
+          expect(mockUserPoolService.saveUser).toHaveBeenCalledWith(
+            TestContext,
+            updatedUser,
+          );
+        });
+      },
+    );
   });
 
   describe("user pool does not have auto verified attributes", () => {
