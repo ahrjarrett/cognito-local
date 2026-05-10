@@ -218,6 +218,33 @@ export const SignUp =
 
     const code = otp();
 
+    // Persist the user BEFORE invoking the CustomMessage_SignUp trigger that
+    // deliverWelcomeMessage fires. AWS Cognito documents the canonical order
+    // as: PreSignUp fires "immediately before [Cognito] completes creation of
+    // a new local or federated user" (see [1]); the user is then created;
+    // CustomMessage_SignUp fires only when Cognito goes to send the
+    // verification message; SignUp returns the new UserSub. The SignUp API
+    // reference makes this order explicit: "You might receive a LimitExceeded
+    // exception in response to this request if you have exceeded a rate quota
+    // for email or SMS messages... When you get this exception in the
+    // response, the user is successfully created and is in an UNCONFIRMED
+    // state" (see [2]) — i.e. user persistence precedes message delivery.
+    //
+    // Saving after delivery (the previous order here) deadlocks any
+    // CustomMessage handler that calls back into ListUsers/AdminGetUser to
+    // look up the just-created user (a common pattern, since AWS-side
+    // eventual consistency makes that lookup occasionally racy and handlers
+    // typically retry). The user can never appear, because we're synchronously
+    // holding up the save behind the trigger response. adminCreateUser.ts
+    // already does this in the correct order.
+    //
+    // [1] https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-lambda-pre-sign-up.html
+    // [2] https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_SignUp.html
+    await userPool.saveUser(ctx, {
+      ...updatedUser,
+      ConfirmationCode: code,
+    });
+
     const deliveryDetails = await deliverWelcomeMessage(
       ctx,
       code,
@@ -227,11 +254,6 @@ export const SignUp =
       messages,
       req.ClientMetadata,
     );
-
-    await userPool.saveUser(ctx, {
-      ...updatedUser,
-      ConfirmationCode: code,
-    });
 
     if (
       updatedUser.UserStatus === "CONFIRMED" &&
