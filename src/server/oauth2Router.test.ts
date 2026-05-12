@@ -52,6 +52,10 @@ describe("POST /oauth2/token — client_credentials grant", () => {
       },
       messages: {} as any,
       otp: vi.fn(),
+      srpSessionStore: {
+        save: vi.fn(),
+        consume: vi.fn(),
+      },
       tokenGenerator: {} as any,
       triggers: {} as any,
     };

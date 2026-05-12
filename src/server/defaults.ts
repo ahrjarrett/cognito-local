@@ -15,6 +15,7 @@ import { MessageDeliveryService } from "../services/messageDelivery/messageDeliv
 import type { MessageSender } from "../services/messageDelivery/messageSender";
 import { SmtpMessageSender } from "../services/messageDelivery/smtpMessageSender";
 import { otp } from "../services/otp";
+import { InMemorySrpSessionStore } from "../services/srpSessionStore";
 import { JwtTokenGenerator } from "../services/tokenGenerator";
 import { UserPoolServiceFactoryImpl } from "../services/userPoolService";
 import { loadConfig } from "./config";
@@ -82,6 +83,7 @@ export const createDefaultServer = async (
       new MessageDeliveryService(messageSender),
     ),
     otp: otp({ Code: config.Code }),
+    srpSessionStore: new InMemorySrpSessionStore(),
     tokenGenerator: new JwtTokenGenerator(clock, triggers, config.TokenConfig),
     triggers,
   };

@@ -21,6 +21,7 @@ import { CryptoService } from "../../src/services/crypto";
 import type { DataStoreFactory } from "../../src/services/dataStore/factory";
 import { StormDBDataStoreFactory } from "../../src/services/dataStore/stormDb";
 import { otp } from "../../src/services/otp";
+import { InMemorySrpSessionStore } from "../../src/services/srpSessionStore";
 import { JwtTokenGenerator } from "../../src/services/tokenGenerator";
 import { UserPoolServiceFactoryImpl } from "../../src/services/userPoolService";
 
@@ -77,6 +78,7 @@ export const withCognitoSdk =
         config: DefaultConfig,
         messages: new MessagesService(triggers, fakeMessageDeliveryService),
         otp: otp(),
+        srpSessionStore: new InMemorySrpSessionStore(),
         triggers,
         tokenGenerator: new JwtTokenGenerator(
           clock,

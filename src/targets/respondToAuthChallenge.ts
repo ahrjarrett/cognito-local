@@ -12,6 +12,7 @@ import {
   UnsupportedError,
 } from "../errors";
 import type { Services } from "../services";
+import { srpPoolName, verifyClaimSignature } from "../services/srp";
 import { verify as verifyTotp } from "../services/totp";
 import {
   attributeValue,
@@ -27,7 +28,13 @@ export type RespondToAuthChallengeTarget = Target<
 
 type RespondToAuthChallengeService = Pick<
   Services,
-  "clock" | "cognito" | "messages" | "otp" | "triggers" | "tokenGenerator"
+  | "clock"
+  | "cognito"
+  | "messages"
+  | "otp"
+  | "srpSessionStore"
+  | "triggers"
+  | "tokenGenerator"
 >;
 
 const sendSmsMfaChallenge = async (
@@ -182,14 +189,44 @@ export const RespondToAuthChallenge =
         UserStatus: "CONFIRMED",
       });
     } else if (req.ChallengeName === "PASSWORD_VERIFIER") {
-      // Simplified SRP: we don't verify the actual SRP proof.
-      // Instead, we just verify the password matches directly.
-      // The real SRP math is skipped in this emulator.
       if (user.Password === undefined) {
         throw new InvalidPasswordError();
       }
-      // In a real SRP flow, PASSWORD_CLAIM_SIGNATURE would be verified
-      // against the SRP shared secret. For the emulator, we trust the client.
+
+      // SRP-6a verification: rebuild the shared secret from the session state
+      // we stashed in initiateAuth, recompute the expected claim signature,
+      // and compare in constant time to what the client sent. A mismatch
+      // (including a wrong password) collapses to NotAuthorizedError.
+      const sessionState = services.srpSessionStore.consume(req.Session ?? "");
+      if (!sessionState || sessionState.username !== user.Username) {
+        throw new NotAuthorizedError();
+      }
+      const claimSignatureBase64 =
+        req.ChallengeResponses.PASSWORD_CLAIM_SIGNATURE;
+      const claimSecretBlockBase64 =
+        req.ChallengeResponses.PASSWORD_CLAIM_SECRET_BLOCK;
+      const timestamp = req.ChallengeResponses.TIMESTAMP;
+      if (!claimSignatureBase64 || !claimSecretBlockBase64 || !timestamp) {
+        throw new InvalidParameterError(
+          "Missing required PASSWORD_VERIFIER ChallengeResponses",
+        );
+      }
+      const ok = verifyClaimSignature({
+        poolName: srpPoolName(userPool.options.Id),
+        username: user.Username,
+        password: user.Password,
+        salt: sessionState.salt,
+        A: sessionState.A,
+        B: sessionState.B,
+        b: sessionState.b,
+        secretBlock: sessionState.secretBlock,
+        timestamp,
+        claimSecretBlockBase64,
+        claimSignatureBase64,
+      });
+      if (!ok) {
+        throw new NotAuthorizedError();
+      }
 
       // Check if MFA is required
       if (

@@ -51,6 +51,7 @@ describe("InitiateAuth target", () => {
       cognito: mockCognitoService,
       messages: mockMessages,
       otp: mockOtp,
+      srpSessionStore: { save: vi.fn(), consume: vi.fn() },
       triggers: mockTriggers,
       tokenGenerator: mockTokenGenerator,
     });

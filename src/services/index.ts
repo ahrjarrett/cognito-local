@@ -3,6 +3,7 @@ import type { AuthorizationCodeStore } from "./authorizationCodeStore";
 import type { Clock } from "./clock";
 import type { CognitoService } from "./cognitoService";
 import type { Messages } from "./messages";
+import type { SrpSessionStore } from "./srpSessionStore";
 import type { TokenGenerator } from "./tokenGenerator";
 import type { Triggers } from "./triggers";
 
@@ -20,6 +21,7 @@ export interface Services {
   config: Config;
   messages: Messages;
   otp: () => string;
+  srpSessionStore: SrpSessionStore;
   tokenGenerator: TokenGenerator;
   triggers: Triggers;
 }
