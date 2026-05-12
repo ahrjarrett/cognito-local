@@ -22,7 +22,7 @@
     "start:debug": "COGNITO_LOCAL_DEVMODE=1 DEBUG=1 tsx --inspect-brk src/bin/start.ts",
     "start:watch": "nodemon",
     "test": "vitest",
-    "type-check": "tsc --target es2019 --esModuleInterop --resolveJsonModule --noEmit",
+    "type-check": "tsc --target es2020 --esModuleInterop --resolveJsonModule --noEmit",
     "semantic-release": "semantic-release",
     "prepare": "husky install"
   },
@@ -89,7 +89,7 @@
   "lint-staged": {
     "*.ts": [
       "biome check --write",
-      "tsc --target es2019 --moduleResolution bundler --esModuleInterop --resolveJsonModule --skipLibCheck --noEmit ./setupTests.ts"
+      "tsc --target es2020 --moduleResolution bundler --esModuleInterop --resolveJsonModule --skipLibCheck --noEmit ./setupTests.ts"
     ],
     "README.md": "markdown-toc -i --bullets=- --maxdepth=3"
   },

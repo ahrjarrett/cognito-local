@@ -58,6 +58,7 @@ describe("RespondToAuthChallenge target", () => {
       cognito: mockCognitoService,
       messages: mockMessages,
       otp: mockOtp,
+      srpSessionStore: { save: vi.fn(), consume: vi.fn() },
       tokenGenerator: mockTokenGenerator,
       triggers: mockTriggers,
     });

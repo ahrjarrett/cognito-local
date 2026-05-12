@@ -17,6 +17,14 @@ import type { Services, UserPoolService } from "../services";
 import type { AppClient } from "../services/appClient";
 import type { Context } from "../services/context";
 import {
+  computeVerifier,
+  computeX,
+  generateServerKeypair,
+  N as SRP_N,
+  padHex as srpPadHex,
+  srpPoolName,
+} from "../services/srp";
+import {
   attributesToRecord,
   attributeValue,
   type MFAOption,
@@ -31,7 +39,12 @@ export type InitiateAuthTarget = Target<
 
 type InitiateAuthServices = Pick<
   Services,
-  "cognito" | "messages" | "otp" | "tokenGenerator" | "triggers"
+  | "cognito"
+  | "messages"
+  | "otp"
+  | "srpSessionStore"
+  | "tokenGenerator"
+  | "triggers"
 >;
 
 const smsMfaChallenge = async (
@@ -344,7 +357,7 @@ const userSrpAuthFlow = async (
   req: InitiateAuthRequest,
   userPool: UserPoolService,
   _userPoolClient: AppClient,
-  _services: InitiateAuthServices,
+  services: InitiateAuthServices,
 ): Promise<InitiateAuthResponse> => {
   if (!req.AuthParameters) {
     throw new InvalidParameterError(
@@ -372,24 +385,46 @@ const userSrpAuthFlow = async (
   if (user.UserStatus === "UNCONFIRMED") {
     throw new UserNotConfirmedException();
   }
+  if (user.Password === undefined) {
+    throw new NotAuthorizedError();
+  }
 
-  // Simplified SRP: return fake SRP_B, SALT, SECRET_BLOCK
-  // The emulator doesn't perform real SRP math — PASSWORD_VERIFIER
-  // response handler will verify the password directly.
-  const salt = crypto.randomBytes(16).toString("hex");
-  const srpB = crypto.randomBytes(128).toString("hex");
-  const secretBlock = crypto.randomBytes(64).toString("base64");
+  // Real SRP-6a: derive the user's verifier from the stored password and a
+  // fresh salt, generate (b, B), and stash the state under a session id so the
+  // PASSWORD_VERIFIER response handler can validate the client's claim.
+  const A = BigInt(`0x${req.AuthParameters.SRP_A}`);
+  if (A % SRP_N === 0n) {
+    throw new NotAuthorizedError();
+  }
+
+  const poolName = srpPoolName(userPool.options.Id);
+  const salt = crypto.randomBytes(16);
+  const x = computeX(poolName, user.Username, user.Password, salt);
+  const v = computeVerifier(x);
+  const { b, B } = generateServerKeypair(v);
+  const secretBlock = crypto.randomBytes(64);
+  const session = v4();
+
+  services.srpSessionStore.save(session, {
+    username: user.Username,
+    password: user.Password,
+    salt,
+    A,
+    B,
+    b,
+    secretBlock,
+  });
 
   return {
     ChallengeName: "PASSWORD_VERIFIER",
     ChallengeParameters: {
-      SALT: salt,
-      SRP_B: srpB,
-      SECRET_BLOCK: secretBlock,
+      SALT: salt.toString("hex"),
+      SRP_B: srpPadHex(B),
+      SECRET_BLOCK: secretBlock.toString("base64"),
       USER_ID_FOR_SRP: user.Username,
       USERNAME: user.Username,
     },
-    Session: v4(),
+    Session: session,
   };
 };
 
