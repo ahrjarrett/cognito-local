@@ -15,6 +15,7 @@ import type { Services } from "../services";
 import { srpPoolName, verifyClaimSignature } from "../services/srp";
 import { verify as verifyTotp } from "../services/totp";
 import {
+  attributesToRecord,
   attributeValue,
   type MFAOption,
   type User,
@@ -248,11 +249,24 @@ export const RespondToAuthChallenge =
       }
 
       if (user.UserStatus === "FORCE_CHANGE_PASSWORD") {
+        // amazon-cognito-identity-js calls JSON.parse on both userAttributes and
+        // requiredAttributes when it receives a NEW_PASSWORD_REQUIRED challenge,
+        // so both fields must be present and valid JSON. Omitting userAttributes
+        // makes the SDK call JSON.parse(undefined) and throw
+        // SyntaxError: "undefined" is not valid JSON.
+        //
+        // SDK:  https://github.com/aws-amplify/amplify-js/blob/5166dc40b49763dd9ec17eb153e3ce08b66b191b/packages/amazon-cognito-identity-js/src/CognitoUser.js#L471-L496
+        // AWS docs (RespondToAuthChallenge): https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_RespondToAuthChallenge.html#API_RespondToAuthChallenge_ResponseSyntax
+        //
+        // The initiateAuth NEW_PASSWORD_REQUIRED path already includes
+        // userAttributes (see src/targets/initiateAuth.ts:newPasswordChallenge);
+        // this branch mirrors that shape so SRP and non-SRP flows agree.
         return {
           ChallengeName: "NEW_PASSWORD_REQUIRED",
           ChallengeParameters: {
             USER_ID_FOR_SRP: user.Username,
             requiredAttributes: JSON.stringify([]),
+            userAttributes: JSON.stringify(attributesToRecord(user.Attributes)),
           } as RespondToAuthChallengeResponse["ChallengeParameters"],
           Session: v4(),
         };
