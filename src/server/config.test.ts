@@ -101,4 +101,58 @@ describe("loadConfig", () => {
       },
     });
   });
+
+  describe("LambdaClient defaults", () => {
+    // No hardcoded fake creds. Lets the AWS SDK default chain (env, instance
+    // metadata, ~/.aws/credentials) work when invoking real AWS Lambdas.
+    it("does not seed fake credentials into DefaultConfig", () => {
+      expect(DefaultConfig.LambdaClient).not.toHaveProperty("credentials");
+    });
+
+    it("preserves a partial LambdaClient config without leaking default creds", async () => {
+      const ds = newMockDataStore();
+      const mockDataStoreFactory = newMockDataStoreFactory(ds);
+
+      ds.getRoot.mockResolvedValue({
+        LambdaClient: { region: "us-east-1" },
+      });
+
+      const config = await loadConfig(TestContext, mockDataStoreFactory);
+
+      expect(config.LambdaClient).not.toHaveProperty("credentials");
+      expect(config.LambdaClient).toMatchObject({ region: "us-east-1" });
+    });
+
+    it("respects explicit credentials in user config", async () => {
+      const ds = newMockDataStore();
+      const mockDataStoreFactory = newMockDataStoreFactory(ds);
+
+      ds.getRoot.mockResolvedValue({
+        LambdaClient: {
+          credentials: { accessKeyId: "AKIA", secretAccessKey: "secret" },
+          region: "us-east-1",
+        },
+      });
+
+      const config = await loadConfig(TestContext, mockDataStoreFactory);
+
+      expect(config.LambdaClient).toEqual({
+        credentials: { accessKeyId: "AKIA", secretAccessKey: "secret" },
+        region: "us-east-1",
+      });
+    });
+
+    it("respects explicit null credentials in user config (opt-in to default chain)", async () => {
+      const ds = newMockDataStore();
+      const mockDataStoreFactory = newMockDataStoreFactory(ds);
+
+      ds.getRoot.mockResolvedValue({
+        LambdaClient: { credentials: null, region: "us-east-1" },
+      });
+
+      const config = await loadConfig(TestContext, mockDataStoreFactory);
+
+      expect(config.LambdaClient.credentials).toBeNull();
+    });
+  });
 });

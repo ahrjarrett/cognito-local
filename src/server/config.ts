@@ -26,11 +26,9 @@ const port = parseInt(process.env.PORT ?? "9229", 10);
 const hostname = process.env.HOST ?? "localhost";
 
 export const DefaultConfig: Config = {
+  // No hardcoded credentials. SDK falls through to default chain when
+  // user config omits them; serverless-offline doesn't validate creds.
   LambdaClient: {
-    credentials: {
-      accessKeyId: "local",
-      secretAccessKey: "local",
-    },
     region: "local",
   },
   TriggerFunctions: {},
