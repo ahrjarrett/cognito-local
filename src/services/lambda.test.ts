@@ -44,6 +44,38 @@ describe("Lambda function invoker", () => {
   });
 
   describe("invoke", () => {
+    // ARN is a valid FunctionName for Lambda's Invoke API; passthrough must be exact.
+    // https://docs.aws.amazon.com/lambda/latest/api/API_Invoke.html#API_Invoke_RequestSyntax
+    it("passes full Lambda ARN to invoke unchanged", async () => {
+      const arn = "arn:aws:lambda:us-east-1:123456789012:function:my-fn";
+      const response = Promise.resolve({
+        StatusCode: 200,
+        Payload: '{ "response": { "ok": true } }',
+      });
+      mockLambdaClient.invoke.mockReturnValue({
+        promise: () => response,
+      } as any);
+      const lambda = new LambdaService(
+        { UserMigration: arn },
+        mockLambdaClient,
+      );
+
+      await lambda.invoke(TestContext, "UserMigration", {
+        clientId: "clientId",
+        clientMetadata: undefined,
+        password: "password",
+        triggerSource: "UserMigration_Authentication",
+        userAttributes: {},
+        username: "username",
+        userPoolId: "userPoolId",
+        validationData: undefined,
+      });
+
+      expect(mockLambdaClient.invoke).toHaveBeenCalledWith(
+        expect.objectContaining({ FunctionName: arn }),
+      );
+    });
+
     it("throws if lambda is not configured", async () => {
       const lambda = new LambdaService({}, mockLambdaClient);
 

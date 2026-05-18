@@ -1,4 +1,3 @@
-import * as AWS from "aws-sdk";
 import type pino from "pino";
 import {
   DateClock,
@@ -19,6 +18,7 @@ import { InMemorySrpSessionStore } from "../services/srpSessionStore";
 import { JwtTokenGenerator } from "../services/tokenGenerator";
 import { UserPoolServiceFactoryImpl } from "../services/userPoolService";
 import { loadConfig } from "./config";
+import { createLambdaClient } from "./createLambdaClient";
 import { Router } from "./Router";
 import { createServer, type Server } from "./server";
 
@@ -57,7 +57,7 @@ export const createDefaultServer = async (
     cognitoClient,
     new LambdaService(
       config.TriggerFunctions,
-      new AWS.Lambda(config.LambdaClient),
+      createLambdaClient(config.LambdaClient),
     ),
     new CryptoService(config.KMSConfig),
   );
